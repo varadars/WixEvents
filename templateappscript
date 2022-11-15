@@ -1,0 +1,128 @@
+
+function createDocument() {
+
+  var sheetId = '1noV0W3yfFfxY9LzRL3IGIbL3k_PVyZZtuGus5e1Dj74';
+  var headers = Sheets.Spreadsheets.Values.get(sheetId, 'A1:K1');
+  var tactics = Sheets.Spreadsheets.Values.get(sheetId, 'A2:K8');
+  var dayLine = SpreadsheetApp.openById(sheetId).getName();
+  var array = dayLine.split(" ");
+  var array1 = array[2].split("-");
+  var day = array1[0].substring(0,1).toUpperCase() + array1[0].substring(1);
+  var templateId = '12KicgHIpDQMpuGgh1nJbVPKN6KkrOZK0m3lwFMHrBUw';
+
+  for(var i = 0; i < tactics.values.length; i++){
+    Logger.log(tactics);
+
+    var idlis = 0;
+    var chutneys = 0;
+    var batters = 0;
+    var sambars = 0;
+    var price = 0;
+
+    var guestname = tactics.values[i][3];
+    var email = tactics.values[i][4];
+
+    var breakdownct = 0;
+    var breakdownstr = "";
+    var count = 0;
+    count = i;
+    if (count < tactics.values.length-1) {
+    //if the next row has the same guestname, then 
+      while (count < tactics.values.length && tactics.values[count][3] == guestname && tactics.values[count][4] == email) {
+        var item = tactics.values[count][5];
+        if (item.indexOf("$6") > 0) {
+          idlis += 5;
+          chutneys += 1;
+          price += 6;
+        } else if (item.indexOf("$20") > 0) {
+          idlis += 20;
+          chutneys += 2;
+          sambars += 1;
+          price += 20;
+        } else if (item.indexOf("$5") > 0) {
+          batters += 1;
+          price += 5;
+        } else if (item.indexOf("$1") > 0) {
+          chutneys += 1;
+          price += 1;
+        }
+
+        //add commas in the right places if needed
+        if (breakdownct < 1) {
+            breakdownstr += item;
+        } else {
+          breakdownstr += ", " + item;
+        }
+
+        //increment counts (kepe track of commas), (keep track of items in order)
+        breakdownct++;
+        count++;
+      }
+    }
+
+    //tells us how much food they need
+    var foodstring = "";
+
+    if (idlis > 0) {
+      foodstring += idlis.toString() + " idlis, ";
+    }
+    if (chutneys > 0 && chutneys == 1) {
+      foodstring += chutneys.toString() + " chutney";
+    } else if (chutneys > 1) {
+      foodstring += chutneys.toString() + " chutneys";
+    }
+    if (sambars > 0 && sambars == 1) {
+      foodstring += sambars.toString() + ", sambar";
+    } else if (sambars > 1) {
+      foodstring += sambars.toString() + ", sambars";
+    }
+    if (batters > 0 && batters == 1) {
+      foodstring += batters.toString() + " batter";
+    } else if (batters > 1) {
+      foodstring += batters.toString() + " batters";
+    }
+
+
+    //create new document from template
+    var documentId = DriveApp.getFileById(templateId).makeCopy().getId();
+    DriveApp.getFileById(documentId).setName(guestname + ' Confirmation Email');
+    var body = DocumentApp.openById(documentId).getBody();
+
+    //replacers
+    body.replaceText('##TOTAL##', price);
+    body.replaceText('##FOODS##', foodstring);
+    body.replaceText('##BREAKDOWN##', breakdownstr);
+    body.replaceText('##DAY##', day);
+
+    //links
+    const links = [
+      {
+        title: "PayPal Link",
+        url: "https://www.paypal.com/paypalme/idlisoncampus/" + price.toString()
+      },
+      {
+        title: "Venmo Link",
+        url: "https://venmo.com/?txn=pay&audience=friends&recipients=idlisoncampus&amount=" + price.toString() + "&note=Idlis"
+      }
+    ];
+
+    var venmo = links.pop();
+    body.findText('##VENMO##')
+      .getElement()         //Gets the current text element.
+      .asText()             //Gets the element as a Text item.
+      .setText(venmo.title)        //Updates the text for that element.
+      .setLinkUrl(venmo.url);     //Sets the hyperlink for that element.
+
+    var paypal = links.pop();
+    body.findText('##PAYPAL##')
+      .getElement()         //Gets the current text element.
+      .asText()             //Gets the element as a Text item.
+      .setText(paypal.title)        //Updates the text for that element.
+      .setLinkUrl(paypal.url);     //Sets the hyperlink for that element.
+
+    if (count > i) {
+      i = count - 1;
+    }
+  }
+}
+
